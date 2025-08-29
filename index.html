@@ -47,58 +47,54 @@
     <section class="card">
       <h2 style="margin-top:0; font-size:1.1rem;">Ergebnis</h2>
 
-      <!-- Zweispaltiges Layout: links KPIs, rechts Gruppierung nach Label -->
-      <div class="grid" style="margin-top:6px;">
-        <div class="col-6">
-          <div class="subheading">Ergebnis (KPIs)</div>
-          <div class="table-wrap">
-            <table id="kpiTable">
-              
-              <thead>
-                <tr><th>Kennzahl</th><th class="num">Wert</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>Summe Volumen (m³)</td><td class="num"><span id="sumVol">–</span></td></tr>
-                <tr><td>Effektive Rate (m³/s)</td><td class="num"><span id="effRate">–</span></td></tr>
-                <tr><td>Geschätzte Dauer</td><td class="num"><span id="duration">–</span></td></tr>
-                <tr><td>Jetzt → Fertig um</td><td class="num"><span id="etaCell">–</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-          
+      <div style="margin-top:6px;">
+        <div class="subheading">Ergebnis (KPIs)</div>
+        <div class="table-wrap">
+          <table id="kpiTable">
 
-          <!-- Ausgeblendet: Gefundene Volumenwerte -->
-          <details style="margin-top:10px;" hidden>
-            <summary>Gefundene Volumenwerte</summary>
-            <div class="list" id="valuesList">–</div>
-          </details>
+            <thead>
+              <tr><th>Kennzahl</th><th class="num">Wert</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Summe Volumen (m³)</td><td class="num"><span id="sumVol">–</span></td></tr>
+              <tr><td>Effektive Rate (m³/s)</td><td class="num"><span id="effRate">–</span></td></tr>
+              <tr><td>Geschätzte Dauer</td><td class="num"><span id="duration">–</span></td></tr>
+              <tr><td>Jetzt → Fertig um</td><td class="num"><span id="etaCell">–</span></td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="col-6">
-          <div class="subheading">Gruppierung nach Label (1. Spalte)</div>
-          <div class="table-wrap">
-            <table id="groupByLabelTable">
-              
-              <thead>
-                <tr>
-                  <th class="sortable" data-key="label"><span>Label</span><span class="sort-ind"></span></th>
-                  <th class="num sortable" data-key="count"><span>Einträge</span><span class="sort-ind"></span></th>
-                  <th class="num sortable" data-key="sum"><span>Summe (m³)</span><span class="sort-ind"></span></th>
-                  <th class="num"><span>Buy (Jita 4-4)</span></th>
-                  <th class="num"><span>Sell (Jita 4-4)</span></th>
-                  <th class="num"><span>Split</span></th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-              <tfoot>
-                <tr>
-                  <th>Gesamt</th>
-                  <th class="num" id="groupTotalCount">–</th>
-                  <th class="num" id="groupTotalSum">–</th>
-                  <th class="num" colspan="3">&nbsp;</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+
+
+        <!-- Ausgeblendet: Gefundene Volumenwerte -->
+        <details style="margin-top:10px;" hidden>
+          <summary>Gefundene Volumenwerte</summary>
+          <div class="list" id="valuesList">–</div>
+        </details>
+
+        <div class="subheading">Gruppierung nach Label (1. Spalte)</div>
+        <div class="table-wrap">
+          <table id="groupByLabelTable">
+
+            <thead>
+              <tr>
+                <th class="sortable" data-key="label"><span>Label</span><span class="sort-ind"></span></th>
+                <th class="num sortable" data-key="count"><span>Einträge</span><span class="sort-ind"></span></th>
+                <th class="num sortable" data-key="sum"><span>Summe (m³)</span><span class="sort-ind"></span></th>
+                <th class="num"><span>Buy (Jita 4-4)</span></th>
+                <th class="num"><span>Sell (Jita 4-4)</span></th>
+                <th class="num"><span>Split</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <th>Gesamt</th>
+                <th class="num" id="groupTotalCount">–</th>
+                <th class="num" id="groupTotalSum">–</th>
+                <th class="num" colspan="3">&nbsp;</th>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
 
