@@ -1,21 +1,21 @@
 // ——— Zahlen-Parsing (DE/EN robust) ———
+const LOCALE_SEPARATORS = ['de-DE', 'en-US'].map(locale => {
+  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  return {
+    group: parts.find(p => p.type === 'group').value,
+    decimal: parts.find(p => p.type === 'decimal').value,
+  };
+});
 function parseNumberSmart(input) {
   if (typeof input !== 'string') return Number(input);
-  let s = input.trim().replace(/ /g, ' ').trim(); // NBSP
+  const s = input.trim();
   if (!s) return NaN;
-  const hasDot = s.includes('.');
-  const hasComma = s.includes(',');
-  if (hasDot && hasComma) {
-    const lastDot = s.lastIndexOf('.');
-    const lastComma = s.lastIndexOf(',');
-    const dec = lastDot > lastComma ? '.' : ',';
-    const thou = dec === '.' ? ',' : '.';
-    s = s.split(thou).join('');
-    if (dec === ',') s = s.replace(',', '.');
-  } else if (hasComma && !hasDot) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  } // else: nur Punkt oder nichts → unverändert
-  return Number(s);
+  for (const { group, decimal } of LOCALE_SEPARATORS) {
+    const normalized = s.split(group).join('').replace(decimal, '.').replace(/\s/g, '');
+    const n = Number(normalized);
+    if (!Number.isNaN(n)) return n;
+  }
+  return Number(s.replace(/\s/g, '').replace(',', '.'));
 }
 const fmtDE = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 });
 const fmtISKnum = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
@@ -25,6 +25,22 @@ function fmtPct(v) { return (v*100).toFixed(1).replace('.', ',') + '%'; }
 // Preis-Cache
 const priceByLabel = new Map(); // label -> { buyMax, sellMin, source: 'fuzzwork'|'evemarketer' }
 const typeIdCache = new Map();  // label -> typeId|null
+
+// DOM-Referenzen cachen
+const dom = {
+  raw: document.getElementById('raw'),
+  rate: document.getElementById('rate'),
+  modules: document.getElementById('modules'),
+  chars: document.getElementById('chars'),
+  sumVol: document.getElementById('sumVol'),
+  effRate: document.getElementById('effRate'),
+  duration: document.getElementById('duration'),
+  valuesList: document.getElementById('valuesList'),
+  etaCell: document.getElementById('etaCell'),
+  groupTotalCount: document.getElementById('groupTotalCount'),
+  groupTotalSum: document.getElementById('groupTotalSum'),
+  groupByValueBody: document.querySelector('#groupByValueTable tbody'),
+};
 
 
 // ——— Theme (Light/Dark) ———
@@ -64,10 +80,10 @@ function loadState() {
 function saveState() {
   try {
     const state = {
-      raw: document.getElementById('raw').value,
-      rate: document.getElementById('rate').value,
-      modules: document.getElementById('modules').value,
-      chars: document.getElementById('chars').value,
+      raw: dom.raw.value,
+      rate: dom.rate.value,
+      modules: dom.modules.value,
+      chars: dom.chars.value,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (_) { /* absichtlich leer */ }
@@ -79,18 +95,18 @@ function clearState() {
 // ——— URL-Share (Query ?state= oder Hash #state=) ———
 function getAppState() {
   return {
-    raw: document.getElementById('raw').value,
-    rate: document.getElementById('rate').value,
-    modules: document.getElementById('modules').value,
-    chars: document.getElementById('chars').value,
+    raw: dom.raw.value,
+    rate: dom.rate.value,
+    modules: dom.modules.value,
+    chars: dom.chars.value,
   };
 }
 function applyAppState(state) {
   if (!state || typeof state !== 'object') return;
-  if (typeof state.raw === 'string') document.getElementById('raw').value = state.raw;
-  if (typeof state.rate === 'string') document.getElementById('rate').value = state.rate;
-  if (typeof state.modules === 'string') document.getElementById('modules').value = state.modules;
-  if (typeof state.chars === 'string') document.getElementById('chars').value = state.chars;
+  if (typeof state.raw === 'string') dom.raw.value = state.raw;
+  if (typeof state.rate === 'string') dom.rate.value = state.rate;
+  if (typeof state.modules === 'string') dom.modules.value = state.modules;
+  if (typeof state.chars === 'string') dom.chars.value = state.chars;
 }
 function b64urlEncode(str) {
   // UTF‑8 → Base64URL
@@ -170,13 +186,7 @@ const scheduleReplaceURL = (() => {
 const VALUE_BEFORE_M3 = /(\d{1,3}(?:[.\s]\d{3})*(?:,\d+)?|\d+(?:,\d+)?)(?=\s*m3\b)/gim;
 
 function extractM3Values(text) {
-  const values = [];
-  let m;
-  while ((m = VALUE_BEFORE_M3.exec(text)) !== null) {
-    const num = Number(m[1].replace(/\./g, '').replace(/,/g, '.'));
-    if (Number.isFinite(num)) values.push(num);
-  }
-  return values;
+  return Array.from(text.matchAll(VALUE_BEFORE_M3), m => parseNumberSmart(m[1])).filter(Number.isFinite);
 }
 
 // ——— Gruppierung 1: nach Label (erste Spalte der Zeile) ———
@@ -186,10 +196,9 @@ function groupByLabel(text) {
   for (const line of lines) {
     if (!line.trim()) continue;
     const label = (line.split('\t')[0] || '').trim() || '—';
-    let m, lineSum = 0, lineCount = 0;
-    VALUE_BEFORE_M3.lastIndex = 0; // reset regex for each line
-    while ((m = VALUE_BEFORE_M3.exec(line)) !== null) {
-      const num = Number(m[1].replace(/\./g, '').replace(/,/g, '.'));
+    let lineSum = 0, lineCount = 0;
+    for (const m of line.matchAll(VALUE_BEFORE_M3)) {
+      const num = parseNumberSmart(m[1]);
       if (Number.isFinite(num)) { lineSum += num; lineCount += 1; }
     }
     if (lineCount > 0) {
@@ -199,7 +208,6 @@ function groupByLabel(text) {
       map.set(label, prev);
     }
   }
-  // in Array überführen und nach Summe absteigend sortieren
   return Array.from(map, ([label, v]) => ({ label, sum: v.sum, count: v.count }))
               .sort((a, b) => b.sum - a.sum);
 }
@@ -490,10 +498,10 @@ function renderTableRows(tbodyEl, rows, type) {
 }
 
 function calculate() {
-  const raw = document.getElementById('raw').value;
-  const rateInput = document.getElementById('rate').value;
-  const modulesInput = document.getElementById('modules').value;
-  const charsInput = document.getElementById('chars').value;
+  const raw = dom.raw.value;
+  const rateInput = dom.rate.value;
+  const modulesInput = dom.modules.value;
+  const charsInput = dom.chars.value;
 
   // Einzelwerte und Gesamtsumme
   const volumes = extractM3Values(raw);
@@ -509,14 +517,14 @@ function calculate() {
   if (effRate > 0 && sumVolume > 0) seconds = sumVolume / effRate;
 
   // KPIs
-  document.getElementById('sumVol').textContent = sumVolume > 0 ? fmtDE.format(sumVolume) : '–';
-  document.getElementById('effRate').textContent = effRate > 0 ? fmtDE.format(effRate) : '–';
-  document.getElementById('duration').textContent = Number.isFinite(seconds) ? formatVerbose(seconds) : '–';
-  document.getElementById('valuesList').textContent = volumes.length ? volumes.map(v => fmtDE.format(v)).join(' | ') : 'Keine Werte mit „m3“ gefunden.';
+  dom.sumVol.textContent = sumVolume > 0 ? fmtDE.format(sumVolume) : '–';
+  dom.effRate.textContent = effRate > 0 ? fmtDE.format(effRate) : '–';
+  dom.duration.textContent = Number.isFinite(seconds) ? formatVerbose(seconds) : '–';
+  dom.valuesList.textContent = volumes.length ? volumes.map(v => fmtDE.format(v)).join(' | ') : 'Keine Werte mit „m3“ gefunden.';
 
   // ETA (Tabellenzeile) aktualisieren
   const etaText = formatETA(seconds);
-  const etaCell = document.getElementById('etaCell');
+  const etaCell = dom.etaCell;
   if (etaCell) { etaCell.textContent = etaText || '–'; }
 
   // Gruppierungen
@@ -526,8 +534,8 @@ function calculate() {
   // Summenzeile aktualisieren
   const totalCount = rowsLabel.reduce((a, r) => a + r.count, 0);
   const totalSum = rowsLabel.reduce((a, r) => a + r.sum, 0);
-  const totalCountEl = document.getElementById('groupTotalCount');
-  const totalSumEl = document.getElementById('groupTotalSum');
+  const totalCountEl = dom.groupTotalCount;
+  const totalSumEl = dom.groupTotalSum;
   if (totalCountEl) totalCountEl.textContent = totalCount ? fmtDE.format(totalCount) : '–';
   if (totalSumEl) totalSumEl.textContent = totalSum ? fmtDE.format(totalSum) : '–';
 
@@ -535,13 +543,13 @@ function calculate() {
   rerenderGroupTable();
   // Preise nachladen (asynchron)
   refreshPricesForLabels(rowsLabel.map(r => r.label)).catch(() => {});
-  renderTableRows(document.querySelector('#groupByValueTable tbody'), rowsValue, 'value');
+  renderTableRows(dom.groupByValueBody, rowsValue, 'value');
 }
 
 function resetAll() {
-  document.getElementById('rate').value = '';
-  document.getElementById('modules').value = '';
-  document.getElementById('chars').value = '';
+  dom.rate.value = '';
+  dom.modules.value = '';
+  dom.chars.value = '';
   calculate();
   saveState();
   scheduleReplaceURL();
@@ -587,7 +595,7 @@ if (fromURL) {
   if (existing && typeof existing.raw === 'string') {
     applyAppState(existing);
   } else {
-    document.getElementById('raw').value = sample;
+    dom.raw.value = sample;
   }
 }
 
@@ -623,10 +631,10 @@ document.getElementById('shareLink').addEventListener('click', async () => {
   }
 });
 const onInput = () => { calculate(); saveState(); scheduleReplaceURL(); };
-document.getElementById('raw').addEventListener('input', onInput);
-document.getElementById('rate').addEventListener('input', onInput);
-document.getElementById('modules').addEventListener('input', onInput);
-document.getElementById('chars').addEventListener('input', onInput);
+['raw', 'rate', 'modules', 'chars'].forEach(id => {
+  const el = dom[id];
+  if (el) el.addEventListener('input', onInput);
+});
 
 // Initial berechnen
 calculate();
